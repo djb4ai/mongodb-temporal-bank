@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Banking Application</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 20px;
+        }
+        .bank-card {
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .bank-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .stopped {
+            opacity: 0.6;
+        }
+        .bank-status {
+            font-size: 0.8rem;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-stopped {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="d-flex justify-content-between align-items-center pb-3 mb-4 border-bottom">
+            <h1 class="fs-4">MongoDB Banking Application</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createBankModal">Create New Bank</button>
+        </header>
+
+        <main>
+            <h2>Banks</h2>
+            
+            <div class="row" id="banksList">
+                {% for bank in banks %}
+                <div class="col-md-4">
+                    <div class="card bank-card {% if bank.status == 'STOPPED' %}stopped{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="card-title">{{ bank.name }}</h5>
+                                <span class="bank-status {% if bank.status == 'ACTIVE' %}status-active{% else %}status-stopped{% endif %}">
+                                    {{ bank.status }}
+                                </span>
+                            </div>
+                            <h6 class="card-subtitle mb-2 text-muted">Balance: ${{ bank.balance }}</h6>
+                            <div class="mt-3 d-flex justify-content-between">
+                                <a href="/banks/{{ bank.name }}" class="btn btn-sm btn-outline-primary">Details</a>
+                                <button class="btn btn-sm {% if bank.status == 'ACTIVE' %}btn-danger{% else %}btn-success{% endif %} toggle-status-btn"
+                                        data-bank-name="{{ bank.name }}" 
+                                        data-current-status="{{ bank.status }}">
+                                    {% if bank.status == 'ACTIVE' %}Stop{% else %}Start{% endif %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        No banks found. Click "Create New Bank" to add one.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </main>
+
+        <!-- Create Bank Modal -->
+        <div class="modal fade" id="createBankModal" tabindex="-1" aria-labelledby="createBankModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="createBankModalLabel">Create New Bank</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createBankForm">
+                            <div class="mb-3">
+                                <label for="bankName" class="form-label">Bank Name</label>
+                                <input type="text" class="form-control" id="bankName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="initialBalance" class="form-label">Initial Balance</label>
+                                <input type="number" class="form-control" id="initialBalance" value="0" min="0">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="createBankBtn">Create</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="pt-4 my-5 text-muted border-top">
+            Python Version of the MongoDB Banking Application &middot; &copy; 2023
+        </footer>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Toggle bank status
+            $('.toggle-status-btn').click(function() {
+                const bankName = $(this).data('bank-name');
+                const currentStatus = $(this).data('current-status');
+                const newStatus = currentStatus === 'ACTIVE' ? 'STOPPED' : 'ACTIVE';
+                
+                $.ajax({
+                    url: `/api/bankStatus?bankName=${bankName}&status=${newStatus}`,
+                    method: 'POST',
+                    success: function(response) {
+                        if (response.status === 'SUCCESS') {
+                            // Refresh the page to show the updated status
+                            window.location.reload();
+                        } else {
+                            alert(`Error: ${response.message}`);
+                        }
+                    },
+                    error: function(xhr) {
+                        alert(`Error updating bank status: ${xhr.responseJSON?.message || xhr.statusText}`);
+                    }
+                });
+            });
+
+            // Create new bank
+            $('#createBankBtn').click(function() {
+                const bankName = $('#bankName').val();
+                const initialBalance = $('#initialBalance').val();
+                
+                if (!bankName) {
+                    alert('Bank name is required');
+                    return;
+                }
+                
+                $.ajax({
+                    url: `/api/createBank?bankName=${bankName}&initialBalance=${initialBalance}`,
+                    method: 'GET',
+                    success: function(response) {
+                        if (response.status === 'SUCCESS') {
+                            $('#createBankModal').modal('hide');
+                            window.location.reload();
+                        } else {
+                            alert(`Error: ${response.message}`);
+                        }
+                    },
+                    error: function(xhr) {
+                        alert(`Error creating bank: ${xhr.responseJSON?.message || xhr.statusText}`);
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
