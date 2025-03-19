@@ -6,7 +6,7 @@ class MongodbConfig:
     MongoDB configuration class similar to the Java MongodbConfig.
     """
     CONN_STRING_ENV_VARNAME = "MONGO_CONNECTION_STRING"
-    CONNECTION_STRING = "mongodb+srv://cluster0.4r3jo.mongodb.net?appName=devrel.integration.mcp-atlas"
+    CONNECTION_STRING = os.getenv(CONN_STRING_ENV_VARNAME)
     DATABASE_NAME = "bankingdemo"
 
     @staticmethod
